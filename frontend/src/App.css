@@ -1,0 +1,124 @@
+.container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  
+}
+
+button {
+  background-color: black;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  
+}
+
+.backgammon-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 110%;
+  background: url("/assets/backgammon-board.png") no-repeat center;
+  background-size: cover;
+  padding: 1%;
+  border-radius: 10px;
+  border: 3px solid #fff;
+  
+}
+
+/* Row for 12 points */
+.board-row {
+  display: flex;
+  justify-content: space-between;
+  width: 90%;
+}
+
+/* Top and Bottom Sections */
+.top-section, .bottom-section {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* Left side (Top Left & Bottom Left) */
+.left-side {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 50%;
+}
+
+/* Right side (Top Right & Bottom Right) */
+.right-side {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  width: 50%;
+}
+
+/* Bar for captured checkers */
+.bar {
+  width: 700px;
+  height: 275px;
+  background-color: none;
+  text-align: center;
+  font-weight: bold;
+  line-height: 80px;
+  border-radius: 10px;
+  margin: 10px 0;
+}
+
+/* The small invisible separator between left & right */
+.middle-separator {
+  width: 7%;
+  height: 100px; /* Make sure it covers the row height */
+  background-color: transparent; /* Invisible */
+}
+
+/* Point Styles */
+.point {
+  width: 50px;
+  height: 100px;
+  border: 2px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+/* Highlight selected checker */
+.point.selected {
+  background-color: yellow;
+}
+
+/* Checker Styles */
+.checker {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  color: black;
+}
+
+.white {
+  background-color: white;
+}
+
+.black {
+  background-color: black;
+  color: white;
+}
+
+.valid-move {
+  border: 2px solid green;
+  /* or background-color: rgba(0, 255, 0, 0.3); */
+}
+
