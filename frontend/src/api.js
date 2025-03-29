@@ -57,4 +57,16 @@ export const getValidMoves = async (payload) => {
       return { error: "Failed to fetch valid moves" };
     }
   };
+
+export const aiMove = async () => {
+    try {
+      const response = await axios.post(`${API_URL}/ai-move`);
+      return response.data;
+    } catch (error) {
+      console.error("API Error:", error);
+      return { error: "AI move failed" };
+    }
+  };
+  
+  
   

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { startGame, rollDice, makeMove, getValidMoves } from "./api";
+import { startGame, rollDice, makeMove, getValidMoves, aiMove } from "./api";
 import "./App.css";
 
 function App() {
@@ -12,15 +12,19 @@ function App() {
     startGame().then(data => setGameState(data));
   }, []);
 
-  const handleRollDice = async () => {
-    const data = await rollDice();
-    setDice(data.dice);
-    // Update the game state with the new moves_remaining from the backend.
-    setGameState(prevState => ({
-      ...prevState,
-      moves_remaining: data.moves_remaining
-    }));
-  };
+  // AI move effect: if it's Black's turn and game is not over, trigger the AI move
+  useEffect(() => {
+    console.log("useEffect triggered, current_player:", gameState?.current_player, "game_over:", gameState?.game_over);
+    if (gameState && gameState.current_player === -1 && !gameState.game_over) {
+      setTimeout(() => {
+        aiMove().then(data => {
+          console.log("AI move complete", data);
+          setGameState(data);
+        }).catch(err => console.error("AI move error:", err));
+      },);
+    }
+  }, [gameState]);
+  
   
   const handleMove = async (start, end) => {
     const data = await makeMove(start, end);
@@ -35,7 +39,6 @@ function App() {
   const handleNewGame = async () => {
     const data = await startGame();
     setGameState(data);
-    handleRollDice()
     setSelectedChecker(null); // Clear any selected checker
   };
 
@@ -44,8 +47,11 @@ function App() {
     setValidMoves(data.valid_moves);
   };
 
+  
+
   return (
     <div className="container">
+
       <h1>Backgammon Game</h1>
       <button onClick={handleNewGame}>Load New Game</button>
       <p>Moves Remaining: {gameState?.moves_remaining ? gameState.moves_remaining.join(", ") : "None"}</p>
@@ -64,8 +70,19 @@ function App() {
   </div>
 )}
 
+
+
       {/* Backgammon Board */}
       <div className="backgammon-board">
+{/* Overlay confined to the board area */}
+{gameState && gameState.game_over && (
+  <div className="board-game-over-overlay">
+    <div className="board-game-over-message">
+      {gameState.game_over === 1 ? "White Wins!" : "Black Wins!"}
+    </div>
+  </div>
+)}
+
         <div className="board-container">
           {/* Top Section */}
           <div className="top-section">
@@ -75,26 +92,25 @@ function App() {
                 const actualIndex = 11 - idx; // Correct actual index for this cell
                 return (
                   <div
-                    key={actualIndex}
-                    className={`point ${selectedChecker === actualIndex ? "selected" : ""}`}
-                    onClick={() => {
-                      if (selectedChecker === null) {
-                        // Select only if it belongs to current player.
-                        if (
-                          (gameState.current_player > 0 && gameState.board[actualIndex] > 0) ||
-                          (gameState.current_player < 0 && gameState.board[actualIndex] < 0)
-                        ) {
-                          setSelectedChecker(actualIndex);
-                        } else {
-                          alert("Select a valid checker");
-                        }
-                      } else if (selectedChecker === actualIndex) {
-                        setSelectedChecker(null);
+                  key={actualIndex}
+                  className={`point ${selectedChecker === actualIndex ? "selected" : ""}`}
+                  onClick={() => {
+                    // Disable selection if it's not White's turn.
+                    if (gameState.current_player !== 1) return;
+                    if (selectedChecker === null) {
+                      // Select only if it belongs to White.
+                      if (gameState.board[actualIndex] > 0) {
+                        setSelectedChecker(actualIndex);
                       } else {
-                        handleMove(selectedChecker, actualIndex);
+                        alert("you are white, select white");
                       }
-                    }}
-                  >
+                    } else if (selectedChecker === actualIndex) {
+                      setSelectedChecker(null);
+                    } else {
+                      handleMove(selectedChecker, actualIndex);
+                    }
+                  }}
+                >
                     {/* Debug Label: Display actual board index */}
                     <div className="index-label">{actualIndex}</div>
                     {point !== 0 && (
@@ -116,37 +132,25 @@ function App() {
                 const actualIndex = 5 - idx; // Correct actual index for this cell
                 return (
                   <div
-                    key={actualIndex}
-                    className={`point ${selectedChecker === actualIndex ? "selected" : ""}`}
-                    onClick={() => {
-                      // Enforce re-entry if black has checkers on the bar.
-                      if (gameState.current_player === -1 && gameState.bar_black > 0) {
-                        // Allow re-entry only if this cell is within black's home (indices 0–5).
-                        if (actualIndex >= 0 && actualIndex <= 5) {
-                          // For re-entry, use a special start value (e.g. 24) to indicate a bar move.
-                          handleMove(24, actualIndex);
-                          return;
-                        } else {
-                          alert("You must re-enter your checkers from the bar!");
-                          return;
-                        }
-                      }
-                      // Normal selection logic...
-                      if (selectedChecker === null) {
-                        if ((gameState.current_player > 0 && gameState.board[actualIndex] > 0) ||
-                            (gameState.current_player < 0 && gameState.board[actualIndex] < 0)) {
-                          setSelectedChecker(actualIndex);
-                        } else {
-                          alert("Select a valid checker");
-                        }
-                      } else if (selectedChecker === actualIndex) {
-                        setSelectedChecker(null);
+                  key={actualIndex}
+                  className={`point ${selectedChecker === actualIndex ? "selected" : ""}`}
+                  onClick={() => {
+                    // Disable selection if it's not White's turn.
+                    if (gameState.current_player !== 1) return;
+                    if (selectedChecker === null) {
+                      // Select only if it belongs to White.
+                      if (gameState.board[actualIndex] > 0) {
+                        setSelectedChecker(actualIndex);
                       } else {
-                        handleMove(selectedChecker, actualIndex);
+                        alert("you are white, select white");
                       }
-                    }}
-                    
-                  >
+                    } else if (selectedChecker === actualIndex) {
+                      setSelectedChecker(null);
+                    } else {
+                      handleMove(selectedChecker, actualIndex);
+                    }
+                  }}
+                >
                     <div className="index-label">{actualIndex}</div>
                     {point !== 0 && (
                       <span className={`checker ${point > 0 ? "white" : "black"}`}>
@@ -185,6 +189,48 @@ function App() {
               ) : null}
             </div>
 
+              {/* Borne-Off Area */}
+              <div className="borne-off">
+                {gameState && (
+                  <>
+                    {gameState.borne_off_white > 0 && (
+                      <div className="borne-off-white">
+                        <span className="label">White Off:</span> {gameState.borne_off_white}
+                      </div>
+                    )}
+                    {gameState.borne_off_black > 0 && (
+                      <div className="borne-off-black">
+                        <span className="label">Black Off:</span> {gameState.borne_off_black}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {gameState && gameState.all_in_home && selectedChecker !== null && gameState.current_player === 1 && (() => {
+                const bearOffMove = gameState.all_moves.find(
+                  m => m[0] === selectedChecker && m[3] === "bear_off"
+                );
+                return bearOffMove ? (
+                  <div className="borne-off-selector" onClick={() => handleMove(selectedChecker, bearOffMove[1])}>
+                    Bear Off Selected White Checker
+                  </div>
+                ) : null;
+              })()}
+
+              {gameState && gameState.all_in_home && selectedChecker !== null && gameState.current_player === -1 && (() => {
+                const bearOffMove = gameState.all_moves.find(
+                  m => m[0] === selectedChecker && m[3] === "bear_off"
+                );
+                return bearOffMove ? (
+                  <div className="borne-off-selector" onClick={() => handleMove(selectedChecker, bearOffMove[1])}>
+                    Bear Off Selected Black Checker
+                  </div>
+                ) : null;
+              })()}
+
+
+
 
           {/* Bottom Section */}
           <div className="bottom-section">
@@ -194,25 +240,25 @@ function App() {
                 const actualIndex = idx + 12;
                 return (
                   <div
-                    key={actualIndex}
-                    className={`point ${selectedChecker === actualIndex ? "selected" : ""}`}
-                    onClick={() => {
-                      if (selectedChecker === null) {
-                        if (
-                          (gameState.current_player > 0 && gameState.board[actualIndex] > 0) ||
-                          (gameState.current_player < 0 && gameState.board[actualIndex] < 0)
-                        ) {
-                          setSelectedChecker(actualIndex);
-                        } else {
-                          alert("Select a valid checker");
-                        }
-                      } else if (selectedChecker === actualIndex) {
-                        setSelectedChecker(null);
+                  key={actualIndex}
+                  className={`point ${selectedChecker === actualIndex ? "selected" : ""}`}
+                  onClick={() => {
+                    // Disable selection if it's not White's turn.
+                    if (gameState.current_player !== 1) return;
+                    if (selectedChecker === null) {
+                      // Select only if it belongs to White.
+                      if (gameState.board[actualIndex] > 0) {
+                        setSelectedChecker(actualIndex);
                       } else {
-                        handleMove(selectedChecker, actualIndex);
+                        alert("you are white, select white");
                       }
-                    }}
-                  >
+                    } else if (selectedChecker === actualIndex) {
+                      setSelectedChecker(null);
+                    } else {
+                      handleMove(selectedChecker, actualIndex);
+                    }
+                  }}
+                >
                     <div className="index-label">{actualIndex}</div>
                     {point !== 0 && (
                       <span className={`checker ${point > 0 ? "white" : "black"}`}>
@@ -233,37 +279,25 @@ function App() {
                 const actualIndex = idx + 18;
                 return (
                   <div
-                    key={actualIndex}
-                    className={`point ${selectedChecker === actualIndex ? "selected" : ""}`}
-                    onClick={() => {
-                      // Enforce re-entry if white has checkers on the bar.
-                      if (gameState.current_player === 1 && gameState.bar_white > 0) {
-                        // Allow re-entry only if this cell is within white's home (indices 18–23).
-                        if (actualIndex >= 18 && actualIndex <= 23) {
-                          // For re-entry, use a special start value (e.g. -1) to indicate a bar move.
-                          handleMove(-1, actualIndex);
-                          return;
-                        } else {
-                          alert("You must re-enter your checkers from the bar!");
-                          return;
-                        }
-                      }
-                      // Normal cell selection logic follows...
-                      if (selectedChecker === null) {
-                        if ((gameState.current_player > 0 && gameState.board[actualIndex] > 0) ||
-                            (gameState.current_player < 0 && gameState.board[actualIndex] < 0)) {
-                          setSelectedChecker(actualIndex);
-                        } else {
-                          alert("Select a valid checker");
-                        }
-                      } else if (selectedChecker === actualIndex) {
-                        setSelectedChecker(null);
+                  key={actualIndex}
+                  className={`point ${selectedChecker === actualIndex ? "selected" : ""}`}
+                  onClick={() => {
+                    // Disable selection if it's not White's turn.
+                    if (gameState.current_player !== 1) return;
+                    if (selectedChecker === null) {
+                      // Select only if it belongs to White.
+                      if (gameState.board[actualIndex] > 0) {
+                        setSelectedChecker(actualIndex);
                       } else {
-                        handleMove(selectedChecker, actualIndex);
+                        alert("you are white, select white");
                       }
-                    }}
-                    
-                  >
+                    } else if (selectedChecker === actualIndex) {
+                      setSelectedChecker(null);
+                    } else {
+                      handleMove(selectedChecker, actualIndex);
+                    }
+                  }}
+                >
                     <div className="index-label">{actualIndex}</div>
                     {point !== 0 && (
                       <span className={`checker ${point > 0 ? "white" : "black"}`}>
@@ -282,37 +316,3 @@ function App() {
 }
 
 export default App;
-
-  // const handleCellClick = (index, offset, sliceLength, reversed) => {
-  //   // Compute the actual board index:
-  //   const actualIndex = reversed ? offset + sliceLength - 1 - index : offset + index;
-  
-  //   // If no checker is selected, check if the current cell contains one of the current player's checkers.
-  //   if (selectedChecker === null) {
-  //     if (gameState?.current_player > 0) {
-  //       if (gameState?.board[actualIndex] > 0) {
-  //         setSelectedChecker(actualIndex);
-  //       } else if (gameState?.board[actualIndex] === 0) {
-  //         alert("Select a checker");
-  //       } else {
-  //         alert("You cannot move an opponent's checker!");
-  //       }
-  //     } else if (gameState?.current_player < 0) {
-  //       if (gameState?.board[actualIndex] < 0) {
-  //         setSelectedChecker(actualIndex);
-  //       } else if (gameState?.board[actualIndex] === 0) {
-  //         alert("Select a checker");
-  //       } else {
-  //         alert("You cannot move an opponent's checker!");
-  //       }
-  //     }
-  //   }
-  //   // If this cell is already selected, unselect it.
-  //   else if (selectedChecker === actualIndex) {
-  //     setSelectedChecker(null);
-  //   }
-  //   // Otherwise, try to move from the selected checker to this cell.
-  //   else {
-  //     handleMove(selectedChecker, actualIndex);
-  //   }
-  // };

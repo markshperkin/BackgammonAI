@@ -2,6 +2,9 @@
 import random
 from flask import Blueprint, request, jsonify
 from game import Backgammon
+import json
+from random_ai import Rplay_ai_move  # Ensure this is imported
+
 # from app import app
 
 
@@ -12,11 +15,12 @@ game = Backgammon()
 
 @game_routes.route('/api/game/start', methods=['POST'])
 def start_game():
-    """Starts a new game instance and randomly selects the starting player."""
     global game
     game = Backgammon()
-    game.current_player = random.choice([1, -1])  # Randomly select starting player (1 for Player 1, -1 for Player 2)
+    game.current_player = random.choice([1, -1])
+    game.roll_dice()  # Roll dice to update dice and moves_remaining.
     return jsonify(game.get_board_state())
+
 
 @game_routes.route('/api/game/roll-dice', methods=['GET'])
 def roll_dice():
@@ -33,7 +37,7 @@ def move():
     end = data.get('end')
 
     if game.make_move(start, end):
-        print("current board state:", game.board, "moves remaining: ", game.moves_remaining)
+        print("current board state:", game.get_board_state())
         return jsonify(game.get_board_state())
     else:
         return jsonify({"error": "Invalid move"}), 400
@@ -52,3 +56,19 @@ def valid_moves():
         return jsonify({"error": "Missing 'start' parameter"}), 400
     valid_moves = game.get_valid_moves(start)
     return jsonify({"valid_moves": valid_moves})
+
+
+@game_routes.route('/api/game/ai-move', methods=['POST'])
+def ai_move():
+    """
+    Processes an AI move for Black.
+    It verifies that it’s Black’s turn, then calls play_ai_move
+    (which selects a random move with delays) and returns the updated game state.
+    """
+    # Check that it's AI's turn (Black)
+    if game.current_player != -1:
+        return jsonify({"error": "Not AI's turn"}), 400
+
+    # Call the AI function with a delay of 1 second (or adjust as needed)
+    new_state = Rplay_ai_move(game, delay=1.0)
+    return jsonify(new_state)
