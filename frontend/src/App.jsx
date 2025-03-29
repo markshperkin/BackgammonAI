@@ -15,8 +15,13 @@ function App() {
   const handleRollDice = async () => {
     const data = await rollDice();
     setDice(data.dice);
+    // Update the game state with the new moves_remaining from the backend.
+    setGameState(prevState => ({
+      ...prevState,
+      moves_remaining: data.moves_remaining
+    }));
   };
-
+  
   const handleMove = async (start, end) => {
     const data = await makeMove(start, end);
     if (data.error) {
@@ -30,7 +35,7 @@ function App() {
   const handleNewGame = async () => {
     const data = await startGame();
     setGameState(data);
-    setDice([0, 0]);        // Optionally reset dice
+    handleRollDice()
     setSelectedChecker(null); // Clear any selected checker
   };
 
@@ -43,183 +48,233 @@ function App() {
     <div className="container">
       <h1>Backgammon Game</h1>
       <button onClick={handleNewGame}>Load New Game</button>
-      <button onClick={handleRollDice}>Roll Dice</button>
-      <p>Dice: {dice[0]} - {dice[1]}</p>
+      <p>Moves Remaining: {gameState?.moves_remaining ? gameState.moves_remaining.join(", ") : "None"}</p>
+
       <p>Current Player: {gameState?.current_player === 1 ? "White" : "Black"}</p>
+
+
+      {gameState?.current_player === 1 && gameState?.bar_white > 0 && (
+  <div className="bar-selector" onClick={() => setSelectedChecker(-1)}>
+    Re-enter White Checker from Bar (You have {gameState.bar_white})
+  </div>
+)}
+{gameState?.current_player === -1 && gameState?.bar_black > 0 && (
+  <div className="bar-selector" onClick={() => setSelectedChecker(24)}>
+    Re-enter Black Checker from Bar (You have {gameState.bar_black})
+  </div>
+)}
 
       {/* Backgammon Board */}
       <div className="backgammon-board">
         <div className="board-container">
-
-          {/* Top Section: Top Left and Top Right with a small separator */}
+          {/* Top Section */}
           <div className="top-section">
-            {/* Top Left (Points 0-5) */}
+            {/* Top Left (Points 6-11 reversed) */}
             <div className="left-side">
-              {gameState?.board?.slice(6, 12).reverse().map((point, index) => (
-                <div
-                  key={index}
-                  className={`point ${selectedChecker === index ? "selected" : ""}`}
-                  
-                  onClick={() => {
-                    const actualIndex = 11 - index;
-                    if (selectedChecker === null) {
-                      if (gameState?.current_player > 0) {
-                        if (gameState?.board[actualIndex] > 0) {
-                          setSelectedChecker(index);
-                          // fetchValidMoves(index);
-                        } else if (gameState.board[actualIndex] === 0)
-                          alert("select a checker");
-                        else
-                          alert("You cannot move an opponent's checker!");
+              {gameState?.board?.slice(6, 12).reverse().map((point, idx) => {
+                const actualIndex = 11 - idx; // Correct actual index for this cell
+                return (
+                  <div
+                    key={actualIndex}
+                    className={`point ${selectedChecker === actualIndex ? "selected" : ""}`}
+                    onClick={() => {
+                      if (selectedChecker === null) {
+                        // Select only if it belongs to current player.
+                        if (
+                          (gameState.current_player > 0 && gameState.board[actualIndex] > 0) ||
+                          (gameState.current_player < 0 && gameState.board[actualIndex] < 0)
+                        ) {
+                          setSelectedChecker(actualIndex);
+                        } else {
+                          alert("Select a valid checker");
+                        }
+                      } else if (selectedChecker === actualIndex) {
+                        setSelectedChecker(null);
+                      } else {
+                        handleMove(selectedChecker, actualIndex);
                       }
-                      else if (gameState?.current_player < 0) {
-                        if (gameState?.board[actualIndex] < 0)
-                          setSelectedChecker(index);
-                        else if (gameState.board[actualIndex] === 0)
-                          alert("select a checker");
-                        else
-                          alert("You cannot move an opponent's checker!");
-                      }
-                    } else if (selectedChecker === index) {
-                      setSelectedChecker(null);
-                    } else {
-                      handleMove(selectedChecker, actualIndex);
-                    }
-                  }}
-                  
-                >
-                  {point !== 0 && <span className={`checker ${point > 0 ? "white" : "black"}`}>{Math.abs(point)}</span>}
-                </div>
-              ))}
+                    }}
+                  >
+                    {/* Debug Label: Display actual board index */}
+                    <div className="index-label">{actualIndex}</div>
+                    {point !== 0 && (
+                      <span className={`checker ${point > 0 ? "white" : "black"}`}>
+                        {Math.abs(point)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Small Invisible Separator */}
+            {/* Invisible Separator */}
             <div className="middle-separator"></div>
 
-            {/* Top Right (Points 6-11) */}
+            {/* Top Right (Points 0-5 reversed) */}
             <div className="right-side">
-              {gameState?.board?.slice(0, 6).reverse().map((point, index) => (
-                <div
-                  key={index}
-                  className={`point ${selectedChecker === index + 6 ? "selected" : ""}`}
-                  onClick={() => {
-                    const actualIndex = 5 - index;
-                    if (selectedChecker === null) {
-                      if (gameState?.current_player > 0) {
-                        if (gameState?.board[actualIndex] > 0)
-                          setSelectedChecker(index + 6);
-                        else if (gameState.board[actualIndex] === 0)
-                          alert("select a checker");
-                        else
-                          alert("You cannot move an opponent's checker!");
+              {gameState?.board?.slice(0, 6).reverse().map((point, idx) => {
+                const actualIndex = 5 - idx; // Correct actual index for this cell
+                return (
+                  <div
+                    key={actualIndex}
+                    className={`point ${selectedChecker === actualIndex ? "selected" : ""}`}
+                    onClick={() => {
+                      // Enforce re-entry if black has checkers on the bar.
+                      if (gameState.current_player === -1 && gameState.bar_black > 0) {
+                        // Allow re-entry only if this cell is within black's home (indices 0–5).
+                        if (actualIndex >= 0 && actualIndex <= 5) {
+                          // For re-entry, use a special start value (e.g. 24) to indicate a bar move.
+                          handleMove(24, actualIndex);
+                          return;
+                        } else {
+                          alert("You must re-enter your checkers from the bar!");
+                          return;
+                        }
                       }
-                      else if (gameState?.current_player < 0) {
-                        if (gameState?.board[actualIndex] < 0)
-                          setSelectedChecker(index + 6);
-                        else if (gameState.board[actualIndex] === 0)
-                          alert("select a checker");
-                        else
-                          alert("You cannot move an opponent's checker!");
+                      // Normal selection logic...
+                      if (selectedChecker === null) {
+                        if ((gameState.current_player > 0 && gameState.board[actualIndex] > 0) ||
+                            (gameState.current_player < 0 && gameState.board[actualIndex] < 0)) {
+                          setSelectedChecker(actualIndex);
+                        } else {
+                          alert("Select a valid checker");
+                        }
+                      } else if (selectedChecker === actualIndex) {
+                        setSelectedChecker(null);
+                      } else {
+                        handleMove(selectedChecker, actualIndex);
                       }
-                    } else if (selectedChecker === index + 6) {
-                      setSelectedChecker(null);
-                    } else {
-                      handleMove(selectedChecker, actualIndex);
-                    }
-                  }}
-                  
-                >
-                  {point !== 0 && <span className={`checker ${point > 0 ? "white" : "black"}`}>{Math.abs(point)}</span>}
-                </div>
-              ))}
+                    }}
+                    
+                  >
+                    <div className="index-label">{actualIndex}</div>
+                    {point !== 0 && (
+                      <span className={`checker ${point > 0 ? "white" : "black"}`}>
+                        {Math.abs(point)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* Center Vertical Bar */}
-          <div className="bar"></div>
+            {/* Center Vertical Bar for Jail */}
+            <div className="bar">
+              {gameState && (gameState.bar_black > 0 || gameState.bar_white > 0) ? (
+                <>
+                  {gameState.bar_black > 0 && (
+                    <div className="bar-checkers">
+                      {Array(gameState.bar_black)
+                        .fill(null)
+                        .map((_, i) => (
+                          <span key={`b-${i}`} className="checker black"></span>
+                        ))}
+                    </div>
+                  )}
+                  {gameState.bar_white > 0 && (
+                    <div className="bar-checkers">
+                      {Array(gameState.bar_white)
+                        .fill(null)
+                        .map((_, i) => (
+                          <span key={`w-${i}`} className="checker white"></span>
+                        ))}
+                    </div>
+                  )}
+                </>
+              ) : null}
+            </div>
 
-          {/* Bottom Section: Bottom Left and Bottom Right with a small separator */}
+
+          {/* Bottom Section */}
           <div className="bottom-section">
             {/* Bottom Left (Points 12-17) */}
             <div className="left-side">
-              {gameState?.board?.slice(12, 18).map((point, index) => (
-                <div
-                  key={index + 12}
-                  className={`point ${selectedChecker === index + 12 ? "selected" : ""}`}
-                  onClick={() => {
-                    const actualIndex = index + 12;
-                    if (selectedChecker === null) {
-                      if (gameState?.current_player > 0) {
-                        if (gameState?.board[actualIndex] > 0)
-                          setSelectedChecker(index + 12);
-                        else if (gameState.board[actualIndex] === 0)
-                          alert("select a checker");
-                        else
-                          alert("You cannot move an opponent's checker!");
+              {gameState?.board?.slice(12, 18).map((point, idx) => {
+                const actualIndex = idx + 12;
+                return (
+                  <div
+                    key={actualIndex}
+                    className={`point ${selectedChecker === actualIndex ? "selected" : ""}`}
+                    onClick={() => {
+                      if (selectedChecker === null) {
+                        if (
+                          (gameState.current_player > 0 && gameState.board[actualIndex] > 0) ||
+                          (gameState.current_player < 0 && gameState.board[actualIndex] < 0)
+                        ) {
+                          setSelectedChecker(actualIndex);
+                        } else {
+                          alert("Select a valid checker");
+                        }
+                      } else if (selectedChecker === actualIndex) {
+                        setSelectedChecker(null);
+                      } else {
+                        handleMove(selectedChecker, actualIndex);
                       }
-                      else if (gameState?.current_player < 0) {
-                        if (gameState?.board[actualIndex] < 0)
-                          setSelectedChecker(index + 12);
-                        else if (gameState.board[actualIndex] === 0)
-                          alert("select a checker");
-                        else
-                          alert("You cannot move an opponent's checker!");
-                      }
-                    } else if (selectedChecker === index + 12) {
-                      setSelectedChecker(null);
-                    } else {
-                      handleMove(selectedChecker, actualIndex);
-                    }
-                  }}
-                  
-                >
-                  {point !== 0 && <span className={`checker ${point > 0 ? "white" : "black"}`}>{Math.abs(point)}</span>}
-                </div>
-              ))}
+                    }}
+                  >
+                    <div className="index-label">{actualIndex}</div>
+                    {point !== 0 && (
+                      <span className={`checker ${point > 0 ? "white" : "black"}`}>
+                        {Math.abs(point)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
-            {/* Small Invisible Separator */}
+            {/* Invisible Separator */}
             <div className="middle-separator"></div>
 
             {/* Bottom Right (Points 18-23) */}
             <div className="right-side">
-              {gameState?.board?.slice(18, 24).map((point, index) => (
-                <div
-                  key={index + 18}
-                  className={`point ${selectedChecker === index + 18 ? "selected" : ""}`}
-                  onClick={() => {
-                    const actualIndex = index + 18;
-                    if (selectedChecker === null) {
-                      if (gameState?.current_player > 0) {
-                        if (gameState?.board[actualIndex] > 0)
-                          setSelectedChecker(index + 18);
-                        else if (gameState.board[actualIndex] === 0)
-                          alert("select a checker");
-                        else
-                          alert("You cannot move an opponent's checker!");
+              {gameState?.board?.slice(18, 24).map((point, idx) => {
+                const actualIndex = idx + 18;
+                return (
+                  <div
+                    key={actualIndex}
+                    className={`point ${selectedChecker === actualIndex ? "selected" : ""}`}
+                    onClick={() => {
+                      // Enforce re-entry if white has checkers on the bar.
+                      if (gameState.current_player === 1 && gameState.bar_white > 0) {
+                        // Allow re-entry only if this cell is within white's home (indices 18–23).
+                        if (actualIndex >= 18 && actualIndex <= 23) {
+                          // For re-entry, use a special start value (e.g. -1) to indicate a bar move.
+                          handleMove(-1, actualIndex);
+                          return;
+                        } else {
+                          alert("You must re-enter your checkers from the bar!");
+                          return;
+                        }
                       }
-                      else if (gameState?.current_player < 0) {
-                        if (gameState?.board[actualIndex] < 0)
-                          setSelectedChecker(index + 18);
-                        else if (gameState.board[actualIndex] === 0)
-                          alert("select a checker");
-                        else
-                          alert("You cannot move an opponent's checker!");
+                      // Normal cell selection logic follows...
+                      if (selectedChecker === null) {
+                        if ((gameState.current_player > 0 && gameState.board[actualIndex] > 0) ||
+                            (gameState.current_player < 0 && gameState.board[actualIndex] < 0)) {
+                          setSelectedChecker(actualIndex);
+                        } else {
+                          alert("Select a valid checker");
+                        }
+                      } else if (selectedChecker === actualIndex) {
+                        setSelectedChecker(null);
+                      } else {
+                        handleMove(selectedChecker, actualIndex);
                       }
-                    } else if (selectedChecker === index + 18) {
-                      setSelectedChecker(null);
-                    } else {
-                      handleMove(selectedChecker, actualIndex);
-                    }
-                  }}
-                  
-                >
-                  {point !== 0 && <span className={`checker ${point > 0 ? "white" : "black"}`}>{Math.abs(point)}</span>}
-                </div>
-              ))}
+                    }}
+                    
+                  >
+                    <div className="index-label">{actualIndex}</div>
+                    {point !== 0 && (
+                      <span className={`checker ${point > 0 ? "white" : "black"}`}>
+                        {Math.abs(point)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
-
         </div>
       </div>
     </div>

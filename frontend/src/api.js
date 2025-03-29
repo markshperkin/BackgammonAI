@@ -49,7 +49,8 @@ export const getGameState = async () => {
 // Get valid moves
 export const getValidMoves = async (payload) => {
     try {
-      const response = await axios.post(`${API_URL}/api/game/valid-moves`, payload);
+      // Remove the extra /api/game portion.
+      const response = await axios.post(`${API_URL}/valid-moves`, payload);
       return response.data;
     } catch (error) {
       console.error("API Error:", error);

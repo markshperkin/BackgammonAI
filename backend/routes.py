@@ -20,9 +20,10 @@ def start_game():
 
 @game_routes.route('/api/game/roll-dice', methods=['GET'])
 def roll_dice():
-    """Rolls the dice and returns the result."""
-    dice = game.roll_dice()
-    return jsonify({"dice": dice})
+    dice = game.roll_dice()  # This method should also set game.moves_remaining appropriately
+    print("dice", dice, "moves remaining:", game.moves_remaining)
+    return jsonify({"dice": dice, "moves_remaining": game.moves_remaining})
+
 
 @game_routes.route('/api/game/move', methods=['POST'])
 def move():
@@ -32,7 +33,7 @@ def move():
     end = data.get('end')
 
     if game.make_move(start, end):
-        print("current board state:", game.board)
+        print("current board state:", game.board, "moves remaining: ", game.moves_remaining)
         return jsonify(game.get_board_state())
     else:
         return jsonify({"error": "Invalid move"}), 400

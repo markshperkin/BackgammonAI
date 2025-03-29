@@ -17,6 +17,18 @@ button {
   
 }
 
+.index-label {
+  font-size: 10px;
+  color: #fff;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  background: rgba(0, 0, 0, 0.5); /* Optional: a translucent background */
+  padding: 1px 3px;
+  border-radius: 3px;
+}
+
+
 .backgammon-board {
   display: flex;
   flex-direction: column;
@@ -122,3 +134,13 @@ button {
   /* or background-color: rgba(0, 255, 0, 0.3); */
 }
 
+.bar-selector {
+  background-color: #444;
+  padding: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  margin-bottom: 10px;
+  color: #fff;
+  font-size: 14px;
+  text-align: center;
+}
